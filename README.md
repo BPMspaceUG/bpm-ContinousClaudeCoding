@@ -85,11 +85,6 @@ Contains global rules that apply to all continuous-claude sessions.
 
 Create a file named `continuous-claude-projectrules.md` in your project directory.
 
-```bash
-# Copy the template to your project
-cp templates/continuous-claude-projectrules.md /path/to/your/project/
-```
-
 Contains project-specific instructions, coding standards, and context.
 
 ## How It Works
@@ -116,11 +111,8 @@ continuous-claude --notes-file /etc/continuous-claude-defaultrules.md \
 bpm-ContinousClaudeCoding/
 ├── README.md
 ├── install.sh              # Installation script
-├── src/
-│   └── continuous-claude.sh    # The ccc function
-└── templates/
-    ├── continuous-claude-defaultrules.md   # Default rules template
-    └── continuous-claude-projectrules.md   # Project rules template
+└── src/
+    └── continuous-claude.sh    # The ccc function
 ```
 
 ## Uninstall

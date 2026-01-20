@@ -49,8 +49,7 @@ install_user() {
     # Check if default rules file exists - warn if not
     if [ ! -f "$RULES_FILE" ]; then
         print_warning "Default rules file NOT FOUND: $RULES_FILE"
-        print_warning "Create this file manually or copy the template:"
-        echo "         cp $SCRIPT_DIR/templates/continuous-claude-defaultrules.md $RULES_FILE"
+        print_warning "Create this file manually!"
     else
         print_info "Default rules file exists: $RULES_FILE"
     fi
@@ -79,8 +78,7 @@ install_system() {
     # Check if default rules file exists - warn if not
     if [ ! -f "$RULES_FILE" ]; then
         print_warning "Default rules file NOT FOUND: $RULES_FILE"
-        print_warning "Create this file manually or copy the template:"
-        echo "         sudo cp $SCRIPT_DIR/templates/continuous-claude-defaultrules.md $RULES_FILE"
+        print_warning "Create this file manually!"
     else
         print_info "Default rules file exists: $RULES_FILE"
     fi
@@ -129,5 +127,3 @@ echo ""
 echo "Rules files:"
 echo "  Default rules: Create manually (see WARNING above if missing)"
 echo "  Project rules: Create 'continuous-claude-projectrules.md' in your project directory"
-echo ""
-echo "Templates available in: $SCRIPT_DIR/templates/"
