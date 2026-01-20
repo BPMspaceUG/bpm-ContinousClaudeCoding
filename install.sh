@@ -46,12 +46,13 @@ install_user() {
     echo "# ccc - continuous-claude wrapper (installed by bpm-ContinousClaudeCoding)" >> "$BASHRC"
     cat "$SCRIPT_DIR/src/continuous-claude.sh" >> "$BASHRC"
 
-    # Copy default rules template if not exists
+    # Check if default rules file exists - warn if not
     if [ ! -f "$RULES_FILE" ]; then
-        cp "$SCRIPT_DIR/templates/continuous-claude-defaultrules.md" "$RULES_FILE"
-        print_info "Created default rules file: $RULES_FILE"
+        print_warning "Default rules file NOT FOUND: $RULES_FILE"
+        print_warning "Create this file manually or copy the template:"
+        echo "         cp $SCRIPT_DIR/templates/continuous-claude-defaultrules.md $RULES_FILE"
     else
-        print_warning "Default rules file already exists: $RULES_FILE (not overwritten)"
+        print_info "Default rules file exists: $RULES_FILE"
     fi
 
     print_success "Installed for user: $USER"
@@ -75,13 +76,13 @@ install_system() {
     sudo chmod 644 "$PROFILE_SCRIPT"
     print_info "Installed shell function: $PROFILE_SCRIPT"
 
-    # Copy default rules template if not exists
+    # Check if default rules file exists - warn if not
     if [ ! -f "$RULES_FILE" ]; then
-        sudo cp "$SCRIPT_DIR/templates/continuous-claude-defaultrules.md" "$RULES_FILE"
-        sudo chmod 644 "$RULES_FILE"
-        print_info "Created default rules file: $RULES_FILE"
+        print_warning "Default rules file NOT FOUND: $RULES_FILE"
+        print_warning "Create this file manually or copy the template:"
+        echo "         sudo cp $SCRIPT_DIR/templates/continuous-claude-defaultrules.md $RULES_FILE"
     else
-        print_warning "Default rules file already exists: $RULES_FILE (not overwritten)"
+        print_info "Default rules file exists: $RULES_FILE"
     fi
 
     print_success "Installed system-wide for all users"
@@ -126,5 +127,7 @@ echo "  ccc                    # Run continuous-claude with rules files"
 echo "  ccc \"your prompt\"      # Run with a specific prompt"
 echo ""
 echo "Rules files:"
-echo "  Default rules: Edit the installed default rules file"
+echo "  Default rules: Create manually (see WARNING above if missing)"
 echo "  Project rules: Create 'continuous-claude-projectrules.md' in your project directory"
+echo ""
+echo "Templates available in: $SCRIPT_DIR/templates/"
