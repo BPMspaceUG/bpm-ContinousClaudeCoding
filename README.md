@@ -1,0 +1,144 @@
+# bpm-ContinousClaudeCoding
+
+A wrapper for `continuous-claude` that automatically loads default and project-specific rules files.
+
+## Features
+
+- **`ccc` command**: Shortcut for `continuous-claude` with automatic rules loading
+- **Two-tier rules system**:
+  - **Default rules**: Global rules applied to all sessions
+  - **Project rules**: Project-specific rules in the current directory
+- **Visual feedback**: INFO/WARNING messages show which rules are loaded
+- **Flexible installation**: User-only or system-wide
+
+## Installation
+
+### Prerequisites
+
+- `continuous-claude` must be installed and available in PATH
+- Bash shell
+
+### Quick Install
+
+```bash
+git clone https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding.git
+cd bpm-ContinousClaudeCoding
+chmod +x install.sh
+./install.sh
+```
+
+### Installation Options
+
+#### User-only (no sudo required)
+```bash
+./install.sh --user
+```
+- Installs to `~/.bashrc`
+- Default rules: `~/.continuous-claude-defaultrules.md`
+
+#### System-wide (all users)
+```bash
+./install.sh --system
+```
+- Installs to `/etc/profile.d/continuous-claude.sh`
+- Default rules: `/etc/continuous-claude-defaultrules.md`
+- Requires sudo
+
+## Usage
+
+```bash
+# Run continuous-claude with automatic rules loading
+ccc
+
+# Run with a specific prompt
+ccc "your prompt here"
+
+# Pass additional arguments
+ccc --model opus "your prompt"
+```
+
+### Output Example
+
+```
+[INFO] Using default rules: /etc/continuous-claude-defaultrules.md
+[WARNING] Project rules NOT FOUND: /home/user/myproject/continuous-claude-projectrules.md
+```
+
+Or when both files exist:
+
+```
+[INFO] Using default rules: /etc/continuous-claude-defaultrules.md
+[INFO] Using project rules: /home/user/myproject/continuous-claude-projectrules.md
+```
+
+## Rules Files
+
+### Default Rules
+
+Located at:
+- **User install**: `~/.continuous-claude-defaultrules.md`
+- **System install**: `/etc/continuous-claude-defaultrules.md`
+
+Contains global rules that apply to all continuous-claude sessions.
+
+### Project Rules
+
+Create a file named `continuous-claude-projectrules.md` in your project directory.
+
+```bash
+# Copy the template to your project
+cp templates/continuous-claude-projectrules.md /path/to/your/project/
+```
+
+Contains project-specific instructions, coding standards, and context.
+
+## How It Works
+
+The `ccc` function:
+
+1. Checks for default rules file (system-wide or user-specific)
+2. Checks for project rules file in current directory
+3. Displays INFO (found) or WARNING (not found) for each
+4. Calls `continuous-claude` with `--notes-file` arguments for found rules
+5. Always adds `--disable-commits -m 100` flags
+
+### Generated Command
+
+```bash
+continuous-claude --notes-file /etc/continuous-claude-defaultrules.md \
+                  --notes-file ./continuous-claude-projectrules.md \
+                  --disable-commits -m 100 "$@"
+```
+
+## File Structure
+
+```
+bpm-ContinousClaudeCoding/
+├── README.md
+├── install.sh              # Installation script
+├── src/
+│   └── continuous-claude.sh    # The ccc function
+└── templates/
+    ├── continuous-claude-defaultrules.md   # Default rules template
+    └── continuous-claude-projectrules.md   # Project rules template
+```
+
+## Uninstall
+
+### User installation
+Remove the ccc function block from `~/.bashrc`
+
+### System installation
+```bash
+sudo rm /etc/profile.d/continuous-claude.sh
+# Optionally remove rules file:
+sudo rm /etc/continuous-claude-defaultrules.md
+```
+
+## License
+
+MIT
+
+## Author
+
+BPMspace UG
