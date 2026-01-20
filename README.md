@@ -2,6 +2,14 @@
 
 A wrapper for `continuous-claude` that automatically loads default and project-specific rules files.
 
+## What `ccc` does
+
+1. **Looks for global rules file**: `/etc/continuous-claude-defaultrules.md` (system) or `~/.continuous-claude-defaultrules.md` (user)
+2. **Looks for project rules file**: `./continuous-claude-projectrules.md` in current directory
+3. **Shows status**: `[INFO]` if found, `[WARNING]` if not found
+4. **Starts continuous-claude** with found rules as `--notes-file` parameters
+5. **Passes all your arguments** to continuous-claude (e.g. `ccc "fix bug"` → `continuous-claude ... "fix bug"`)
+
 ## Features
 
 - **`ccc` command**: Shortcut for `continuous-claude` with automatic rules loading
