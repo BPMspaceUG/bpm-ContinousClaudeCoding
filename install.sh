@@ -2,9 +2,16 @@
 # install.sh - Install ccc (continuous-claude wrapper)
 # Source: https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_FILE="$SCRIPT_DIR/src/continuous-claude.sh"
+
+# Verify source file exists
+if [ ! -f "$SOURCE_FILE" ]; then
+    printf '\033[0;31m[ERROR]\033[0m Source file not found: %s\n' "$SOURCE_FILE" >&2
+    exit 3
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -18,33 +25,70 @@ print_success() { printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[WARNING]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[ERROR]${NC} %s\n" "$1"; }
 
+# Check for continuous-claude dependency
+check_dependency() {
+    if ! command -v continuous-claude >/dev/null 2>&1; then
+        print_warning "continuous-claude not found in PATH"
+        print_warning "Install it from: https://github.com/anthropics/claude-code"
+        print_warning "ccc will not work until continuous-claude is installed"
+        echo ""
+    fi
+}
+
 show_usage() {
-    echo "Usage: $0 [--user | --system]"
+    echo "Usage: $0 [--user | --global | --all]"
     echo ""
     echo "Options:"
     echo "  --user    Install for current user only (~/.bashrc)"
-    echo "  --system  Install system-wide for all users (/etc/profile.d/) - requires sudo"
+    echo "  --global  Install system-wide for all users (/etc/profile.d/) - requires sudo"
+    echo "  --system  Alias for --global (backwards compatibility)"
+    echo "  --all     Install to both user and system locations"
     echo ""
     echo "If no option is provided, you will be prompted to choose."
 }
 
 install_user() {
     print_info "Installing for current user..."
+    check_dependency
 
     # Copy function to user's bashrc
     BASHRC="$HOME/.bashrc"
     RULES_FILE="$HOME/.continuous-claude-defaultrules.md"
 
-    # Remove old installation if exists
-    if grep -q "# ccc - continuous-claude wrapper" "$BASHRC" 2>/dev/null; then
-        print_info "Removing previous installation..."
-        sed -i '/# ccc - continuous-claude wrapper/,/^}$/d' "$BASHRC"
+    # Backup .bashrc before modification
+    if [ -f "$BASHRC" ]; then
+        cp "$BASHRC" "$BASHRC.bak"
+        print_info "Backed up $BASHRC to $BASHRC.bak"
     fi
 
-    # Add marker and function
-    echo "" >> "$BASHRC"
-    echo "# ccc - continuous-claude wrapper (installed by bpm-ContinousClaudeCoding)" >> "$BASHRC"
-    cat "$SCRIPT_DIR/src/continuous-claude.sh" >> "$BASHRC"
+    # Remove old installation if exists
+    # Handles both old format (ending with closing brace of ccc function) and new format (with markers)
+    if grep -q "# ccc - continuous-claude wrapper" "$BASHRC" 2>/dev/null; then
+        print_info "Removing previous installation..."
+        # Single-pass awk that handles both formats:
+        # - hdr=1: just saw header, check if next line is CCC_START (new format)
+        # - If CCC_START immediately follows: remove until CCC_END (new format)
+        # - Otherwise: remove until ^}$ (old format)
+        # Note: in old format, line after header is function content (should be skipped)
+        awk '
+            /^# ccc - continuous-claude wrapper/ { hdr=1; next }
+            hdr && /^# <<<CCC_START>>>$/ { inblock=1; mode="new"; hdr=0; next }
+            hdr { inblock=1; mode="old"; hdr=0 }
+            inblock && mode=="new" && /^# <<<CCC_END>>>$/ { inblock=0; mode=""; next }
+            inblock && mode=="old" && /^}$/ { inblock=0; mode=""; next }
+            inblock { next }
+            { print }
+        ' "$BASHRC" > "$BASHRC.tmp" && mv "$BASHRC.tmp" "$BASHRC"
+    fi
+
+    # Add start marker, function, and end marker
+    {
+        echo ""
+        echo "# ccc - continuous-claude wrapper (installed by bpm-ContinousClaudeCoding)"
+        echo "# <<<CCC_START>>>"
+        cat "$SOURCE_FILE"
+        echo "# <<<CCC_END>>>"
+    } >> "$BASHRC"
 
     # Check if default rules file exists - warn if not
     if [ ! -f "$RULES_FILE" ]; then
@@ -60,18 +104,25 @@ install_user() {
 
 install_system() {
     print_info "Installing system-wide (requires sudo)..."
+    check_dependency
 
     # Check for sudo
     if ! sudo -v 2>/dev/null; then
         print_error "sudo access required for system-wide installation"
-        exit 1
+        exit 2
     fi
 
     PROFILE_SCRIPT="/etc/profile.d/continuous-claude.sh"
     RULES_FILE="/etc/continuous-claude-defaultrules.md"
 
+    # Backup existing profile script if it exists
+    if [ -f "$PROFILE_SCRIPT" ]; then
+        sudo cp "$PROFILE_SCRIPT" "$PROFILE_SCRIPT.bak"
+        print_info "Backed up $PROFILE_SCRIPT to $PROFILE_SCRIPT.bak"
+    fi
+
     # Copy function to profile.d
-    sudo cp "$SCRIPT_DIR/src/continuous-claude.sh" "$PROFILE_SCRIPT"
+    sudo cp "$SOURCE_FILE" "$PROFILE_SCRIPT"
     sudo chmod 644 "$PROFILE_SCRIPT"
     print_info "Installed shell function: $PROFILE_SCRIPT"
 
@@ -87,13 +138,23 @@ install_system() {
     print_info "Users need to log out/in or run 'source $PROFILE_SCRIPT' to use 'ccc'"
 }
 
+install_all() {
+    print_info "Installing to both user and system locations..."
+    install_user
+    echo ""
+    install_system
+}
+
 # Main
 case "${1:-}" in
     --user)
         install_user
         ;;
-    --system)
+    --global|--system)
         install_system
+        ;;
+    --all)
+        install_all
         ;;
     --help|-h)
         show_usage
@@ -103,11 +164,13 @@ case "${1:-}" in
         echo "Choose installation type:"
         echo "  1) User only (current user, no sudo required)"
         echo "  2) System-wide (all users, requires sudo)"
+        echo "  3) Both locations"
         echo ""
-        read -p "Enter choice [1/2]: " choice
+        read -r -p "Enter choice [1-3]: " choice || { print_error "No input received"; exit 1; }
         case "$choice" in
             1) install_user ;;
             2) install_system ;;
+            3) install_all ;;
             *) print_error "Invalid choice"; exit 1 ;;
         esac
         ;;
