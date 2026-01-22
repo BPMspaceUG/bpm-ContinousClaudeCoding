@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-260122--2111-blue.svg)](https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding)
 
-A shell function that wraps [`continuous-claude`](https://github.com/AnandChowdhary/continuous-claude) with automatic rules file loading and GitHub issue shortcuts.
+A shell function that wraps <a href="https://github.com/AnandChowdhary/continuous-claude" target="_blank">`continuous-claude`</a> with automatic rules file loading and GitHub issue shortcuts.
 
 ## Installation
 
@@ -196,7 +196,7 @@ sudo rm /etc/continuous-claude-defaultrules.md
 
 ## Credits
 
-This project is a wrapper for **[continuous-claude](https://github.com/AnandChowdhary/continuous-claude)** by [Anand Chowdhary](https://github.com/AnandChowdhary).
+This project is a wrapper for <a href="https://github.com/AnandChowdhary/continuous-claude" target="_blank"><b>continuous-claude</b></a> by <a href="https://github.com/AnandChowdhary" target="_blank">Anand Chowdhary</a>.
 
 ## License
 
