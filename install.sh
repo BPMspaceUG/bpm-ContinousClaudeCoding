@@ -1,6 +1,7 @@
 #!/bin/bash
 # install.sh - Install ccc (continuous-claude wrapper)
 # Source: https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding
+# Wraps: https://github.com/AnandChowdhary/continuous-claude
 #
 # Designed to be piped from curl:
 #   curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh | bash -s -- --user

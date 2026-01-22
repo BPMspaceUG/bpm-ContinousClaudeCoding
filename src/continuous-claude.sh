@@ -2,6 +2,9 @@
 # Source: https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding
 # Version: See CCC_VERSION below (YYMMDD-HHMM format)
 #
+# Wraps continuous-claude by Anand Chowdhary:
+# https://github.com/AnandChowdhary/continuous-claude
+#
 # This function wraps 'continuous-claude' with automatic rules file loading:
 # - Default rules: /etc/continuous-claude-defaultrules.md (system-wide)
 #                  OR ~/continuous-claude-defaultrules.md (user-only)
