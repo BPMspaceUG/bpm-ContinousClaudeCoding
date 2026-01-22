@@ -3,8 +3,9 @@
 #
 # This function wraps 'continuous-claude' with automatic rules file loading:
 # - Default rules: /etc/continuous-claude-defaultrules.md (system-wide)
-#                  OR ~/.continuous-claude-defaultrules.md (user-only)
+#                  OR ~/continuous-claude-defaultrules.md (user-only)
 # - Project rules: ./continuous-claude-projectrules.md (current directory)
+# - Auto-detects GitHub owner/repo from git remote
 
 ccc() {
   # Check if continuous-claude is available
@@ -202,7 +203,7 @@ ccc() {
   if [ -f "/etc/continuous-claude-defaultrules.md" ]; then
     default_rules="/etc/continuous-claude-defaultrules.md"
   else
-    default_rules="$HOME/.continuous-claude-defaultrules.md"
+    default_rules="$HOME/continuous-claude-defaultrules.md"
   fi
   project_rules="$PWD/continuous-claude-projectrules.md"
 
@@ -222,8 +223,45 @@ ccc() {
     printf '\033[1;33m[WARNING]\033[0m Project rules NOT FOUND: %s\n' "$project_rules"
   fi
 
+  # Auto-detect GitHub owner/repo from git remote if not already specified
+  local git_owner="" git_repo=""
+  local has_owner=0 has_repo=0
+
+  # Check if --owner or --repo already provided in args (supports both --owner value and --owner=value)
+  local check_arg
+  for check_arg in "$@"; do
+    case "$check_arg" in
+      --owner|--owner=*) has_owner=1 ;;
+      --repo|--repo=*) has_repo=1 ;;
+    esac
+  done
+
+  # Extract owner/repo from git remote if in a git repo and flags not provided
+  if (( !has_owner || !has_repo )); then
+    local git_remote
+    git_remote=$(git remote get-url origin 2>/dev/null) || true
+    if [ -n "$git_remote" ]; then
+      # Parse GitHub URL (supports both HTTPS and SSH formats)
+      # HTTPS: https://github.com/owner/repo.git
+      # SSH: git@github.com:owner/repo.git
+      if [[ "$git_remote" =~ github\.com[:/]([^/]+)/([^/.]+)(\.git)?$ ]]; then
+        git_owner="${BASH_REMATCH[1]}"
+        git_repo="${BASH_REMATCH[2]}"
+        printf '\033[1;34m[INFO]\033[0m Auto-detected GitHub repo: %s/%s\n' "$git_owner" "$git_repo"
+      fi
+    fi
+  fi
+
   # Build final command
   local -a final_args=("${notes_args[@]}" "--disable-commits" "-m" "100")
+
+  # Add auto-detected owner/repo if available and not already specified
+  if (( !has_owner )) && [ -n "$git_owner" ]; then
+    final_args+=("--owner" "$git_owner")
+  fi
+  if (( !has_repo )) && [ -n "$git_repo" ]; then
+    final_args+=("--repo" "$git_repo")
+  fi
 
   # Add generated prompt with optional user prompt
   if [ -n "$generated_prompt" ]; then

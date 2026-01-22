@@ -53,7 +53,7 @@ install_user() {
 
     # Copy function to user's bashrc
     BASHRC="$HOME/.bashrc"
-    RULES_FILE="$HOME/.continuous-claude-defaultrules.md"
+    RULES_FILE="$HOME/continuous-claude-defaultrules.md"
 
     # Backup .bashrc before modification
     if [ -f "$BASHRC" ]; then

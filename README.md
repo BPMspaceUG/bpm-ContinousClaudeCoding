@@ -1,164 +1,189 @@
-# bpm-ContinousClaudeCoding
+# ccc - continuous-claude wrapper
 
-A wrapper for `continuous-claude` that automatically loads default and project-specific rules files.
-
-## What `ccc` does
-
-1. **Looks for global rules file**: `/etc/continuous-claude-defaultrules.md` (system) or `~/.continuous-claude-defaultrules.md` (user)
-2. **Looks for project rules file**: `./continuous-claude-projectrules.md` in current directory
-3. **Shows status**: `[INFO]` if found, `[WARNING]` if not found
-4. **Starts continuous-claude** with found rules as `--notes-file` parameters
-5. **Passes all your arguments** to continuous-claude (e.g. `ccc "fix bug"` → `continuous-claude ... "fix bug"`)
-
-## Features
-
-- **`ccc` command**: Shortcut for `continuous-claude` with automatic rules loading
-- **Two-tier rules system**:
-  - **Default rules**: Global rules applied to all sessions
-  - **Project rules**: Project-specific rules in the current directory
-- **Visual feedback**: INFO/WARNING messages show which rules are loaded
-- **Flexible installation**: User-only or system-wide
+A shell function that wraps `continuous-claude` with automatic rules file loading and GitHub issue shortcuts.
 
 ## Installation
 
-### Prerequisites
+### One-time Usage
 
-- `continuous-claude` must be installed and available in PATH
-- Bash shell
-
-### Quick Install
+Load the function directly into your current shell:
 
 ```bash
-git clone https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding.git
-cd bpm-ContinousClaudeCoding
-chmod +x install.sh
-./install.sh
+source <(curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/src/continuous-claude.sh)
 ```
 
-### Installation Options
+### Permanent Installation
 
-#### User-only (no sudo required)
+#### User Installation (recommended)
+
 ```bash
-./install.sh --user
+curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh | bash -s -- --user
 ```
+
 - Installs to `~/.bashrc`
-- Default rules: `~/.continuous-claude-defaultrules.md`
+- Default rules: `~/continuous-claude-defaultrules.md`
+- No sudo required
 
-#### System-wide (all users)
+#### System Installation
+
 ```bash
-./install.sh --system
+curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh | bash -s -- --system
 ```
+
 - Installs to `/etc/profile.d/continuous-claude.sh`
 - Default rules: `/etc/continuous-claude-defaultrules.md`
 - Requires sudo
 
 ## Usage
 
-```bash
-# Run continuous-claude with automatic rules loading
-ccc
+### NAME
 
-# Run with a specific prompt
-ccc "your prompt here"
+`ccc` - continuous-claude wrapper with automatic rules loading and issue shortcuts
 
-# Pass additional arguments
-ccc --model opus "your prompt"
+### SYNOPSIS
+
 ```
+ccc [OPTIONS] [PROMPT]
+ccc [OPTIONS] ISSUE_NUMBER[,ISSUE_NUMBER...] [CONTEXT]
+ccc [OPTIONS] open [CONTEXT]
+```
+
+### DESCRIPTION
+
+Wraps `continuous-claude` with automatic loading of default and project rules files.
+Supports shortcuts for working on GitHub issues.
+
+### OPTIONS
+
+```
+-p, --prompt TEXT            Custom prompt (can be combined with shortcuts)
+-m, --max-runs N             Maximum iterations (default: 100)
+--max-cost COST              Maximum cost limit
+--max-duration DURATION      Maximum duration limit
+--model MODEL                Model to use (e.g., opus, sonnet)
+--owner OWNER                GitHub repository owner (auto-detected from git)
+--repo REPO                  GitHub repository name (auto-detected from git)
+--git-branch-prefix PREFIX   Prefix for git branches
+--merge-strategy STRATEGY    Merge strategy to use
+--notes-file FILE            Additional notes file to load
+--worktree PATH              Git worktree path
+--worktree-base-dir DIR      Base directory for worktrees
+--completion-signal SIGNAL   Signal for completion
+--completion-threshold N     Threshold for completion
+-r, --review-prompt TEXT     Review prompt
+--ci-retry-max N             Maximum CI retries
+--disable-commits            Disable automatic commits (always enabled)
+```
+
+All `continuous-claude` flags are passed through.
+
+### EXAMPLES
+
+```bash
+ccc                              # Run with rules files only
+ccc "prompt text"                # Run with custom prompt
+ccc 5                            # Work on issue #5
+ccc 1,9                          # Work on issues #1 and #9
+ccc 2,5,8                        # Work on issues #2, #5, and #8
+ccc open                         # List and work on all open issues
+ccc 3 "focus on tests"           # Issue #3 with additional context
+ccc open "only bugs"             # Open issues with context
+ccc 3 -p "focus on tests"        # Same as above, using -p flag
+ccc --model opus "prompt"        # With specific model
+```
+
+## Features
 
 ### Issue Shortcuts
 
-Work on GitHub issues directly by passing issue numbers:
+Work on GitHub issues by passing issue numbers:
 
-```bash
-# Work on a single issue
-ccc 2                    # Expands to: -p "work on issue 2"
-
-# Work on two issues (uses "and")
-ccc 2,7                  # Expands to: -p "work on issues 2 and 7"
-
-# Work on multiple issues (comma-separated with "and" before last)
-ccc 2,7,15               # Expands to: -p "work on issues 2, 7, and 15"
-
-# Add context to issue work (merged with colon)
-ccc 2 "focus on tests"   # Expands to: -p "work on issue 2: focus on tests"
-```
+| Input | Generated Prompt |
+|-------|------------------|
+| `ccc 2` | `-p "work on issue 2"` |
+| `ccc 2,7` | `-p "work on issues 2 and 7"` |
+| `ccc 2,7,15` | `-p "work on issues 2, 7, and 15"` |
 
 ### Open Issues Shortcut
 
-Work on all open issues in the repository:
+| Input | Generated Prompt |
+|-------|------------------|
+| `ccc open` | `-p "list all open issues and then work on them"` |
 
-```bash
-# List and work on all open issues
-ccc open                 # Expands to: -p "list all open issues and then work on them"
+### Prompt Merging
 
-# With additional context (merged with colon)
-ccc open "prioritize bugs"  # Expands to: -p "list all open issues and then work on them: prioritize bugs"
+Additional context is appended with a colon:
+
+| Input | Generated Prompt |
+|-------|------------------|
+| `ccc 2 "focus on tests"` | `-p "work on issue 2: focus on tests"` |
+| `ccc open "prioritize bugs"` | `-p "list all open issues and then work on them: prioritize bugs"` |
+| `ccc 2 -p "only unit tests"` | `-p "work on issue 2: only unit tests"` |
+| `ccc open --prompt "bugs first"` | `-p "list all open issues and then work on them: bugs first"` |
+
+Both positional and flag-based prompts work with all shortcuts.
+
+### Auto-detected GitHub Repository
+
+The wrapper automatically detects `--owner` and `--repo` from your git remote:
+
+```
+[INFO] Auto-detected GitHub repo: BPMspaceUG/bpm-ContinousClaudeCoding
 ```
 
-### Output Example
+This prevents API errors from using the wrong repository owner.
 
-```
-[INFO] Using default rules: /etc/continuous-claude-defaultrules.md
-[WARNING] Project rules NOT FOUND: /home/user/myproject/continuous-claude-projectrules.md
-```
+### Rules Files
 
-Or when both files exist:
+Two-tier rules system:
+
+| File | Location | Purpose |
+|------|----------|---------|
+| Default rules | `/etc/continuous-claude-defaultrules.md` (system) | Global rules for all sessions |
+|               | `~/continuous-claude-defaultrules.md` (user) | |
+| Project rules | `./continuous-claude-projectrules.md` | Project-specific rules |
+
+### Fixed Flags
+
+Always added to every invocation:
+- `--disable-commits` - Prevents automatic commits
+- `-m 100` - Maximum 100 iterations
+
+### Flag Passthrough
+
+These flags are correctly passed through to `continuous-claude`:
+
+`-m`, `--max-runs`, `--max-cost`, `--max-duration`, `--owner`, `--repo`, `--git-branch-prefix`, `--merge-strategy`, `--notes-file`, `--worktree`, `--worktree-base-dir`, `--completion-signal`, `--completion-threshold`, `-r`, `--review-prompt`, `--ci-retry-max`, `--model`
+
+## Output
 
 ```
 [INFO] Using default rules: /etc/continuous-claude-defaultrules.md
 [INFO] Using project rules: /home/user/myproject/continuous-claude-projectrules.md
+[INFO] Auto-detected GitHub repo: owner/repo
 ```
 
-## Rules Files
-
-### Default Rules
-
-Located at:
-- **User install**: `~/.continuous-claude-defaultrules.md`
-- **System install**: `/etc/continuous-claude-defaultrules.md`
-
-Contains global rules that apply to all continuous-claude sessions.
-
-### Project Rules
-
-Create a file named `continuous-claude-projectrules.md` in your project directory.
-
-Contains project-specific instructions, coding standards, and context.
-
-## How It Works
-
-The `ccc` function:
-
-1. Checks for default rules file (system-wide or user-specific)
-2. Checks for project rules file in current directory
-3. Displays INFO (found) or WARNING (not found) for each
-4. Calls `continuous-claude` with `--notes-file` arguments for found rules
-5. Always adds `--disable-commits -m 100` flags
-
-### Generated Command
-
-```bash
-continuous-claude --notes-file /etc/continuous-claude-defaultrules.md \
-                  --notes-file ./continuous-claude-projectrules.md \
-                  --disable-commits -m 100 "$@"
-```
-
-## File Structure
+Or when files are missing:
 
 ```
-bpm-ContinousClaudeCoding/
-├── README.md
-├── install.sh              # Installation script
-└── src/
-    └── continuous-claude.sh    # The ccc function
+[WARNING] Default rules NOT FOUND: ~/continuous-claude-defaultrules.md
+[WARNING] Project rules NOT FOUND: ./continuous-claude-projectrules.md
 ```
+
+## Prerequisites
+
+- `continuous-claude` must be installed and in PATH
+- Bash shell
+- Git (for auto-detection of owner/repo)
 
 ## Uninstall
 
-### User installation
-Remove the ccc function block from `~/.bashrc`
+### User Installation
 
-### System installation
+Remove the ccc function block from `~/.bashrc` (between `# <<<CCC_START>>>` and `# <<<CCC_END>>>` markers)
+
+### System Installation
+
 ```bash
 sudo rm /etc/profile.d/continuous-claude.sh
 # Optionally remove rules file:
