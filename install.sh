@@ -1,17 +1,15 @@
 #!/bin/bash
 # install.sh - Install ccc (continuous-claude wrapper)
 # Source: https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding
+#
+# Designed to be piped from curl:
+#   curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh | bash -s -- --user
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_FILE="$SCRIPT_DIR/src/continuous-claude.sh"
-
-# Verify source file exists
-if [ ! -f "$SOURCE_FILE" ]; then
-    printf '\033[0;31m[ERROR]\033[0m Source file not found: %s\n' "$SOURCE_FILE" >&2
-    exit 3
-fi
+CCC_VERSION="1.0.0"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main"
+SOURCE_URL="$GITHUB_RAW_URL/src/continuous-claude.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -39,21 +37,37 @@ show_usage() {
     echo "Usage: $0 [--user | --global | --all]"
     echo ""
     echo "Options:"
-    echo "  --user    Install for current user only (~/.bashrc)"
-    echo "  --global  Install system-wide for all users (/etc/profile.d/) - requires sudo"
-    echo "  --system  Alias for --global (backwards compatibility)"
-    echo "  --all     Install to both user and system locations"
+    echo "  --user      Install for current user only (~/.bashrc)"
+    echo "  --global    Install system-wide for all users (/etc/profile.d/) - requires sudo"
+    echo "  --system    Alias for --global (backwards compatibility)"
+    echo "  --all       Install to both user and system locations"
+    echo "  --version   Show version number"
+    echo "  --help      Show this help message"
     echo ""
     echo "If no option is provided, you will be prompted to choose."
 }
 
+download_source() {
+    local content
+    content=$(curl -fsSL "$SOURCE_URL" 2>/dev/null) || {
+        print_error "Failed to download source from: $SOURCE_URL"
+        exit 3
+    }
+    echo "$content"
+}
+
 install_user() {
-    print_info "Installing for current user..."
+    print_info "Installing ccc v$CCC_VERSION for current user..."
     check_dependency
 
     # Copy function to user's bashrc
     BASHRC="$HOME/.bashrc"
     RULES_FILE="$HOME/continuous-claude-defaultrules.md"
+
+    # Download source
+    print_info "Downloading source from GitHub..."
+    local source_content
+    source_content=$(download_source)
 
     # Backup .bashrc before modification
     if [ -f "$BASHRC" ]; then
@@ -84,9 +98,9 @@ install_user() {
     # Add start marker, function, and end marker
     {
         echo ""
-        echo "# ccc - continuous-claude wrapper (installed by bpm-ContinousClaudeCoding)"
+        echo "# ccc - continuous-claude wrapper v$CCC_VERSION (installed by bpm-ContinousClaudeCoding)"
         echo "# <<<CCC_START>>>"
-        cat "$SOURCE_FILE"
+        echo "$source_content"
         echo "# <<<CCC_END>>>"
     } >> "$BASHRC"
 
@@ -98,12 +112,12 @@ install_user() {
         print_info "Default rules file exists: $RULES_FILE"
     fi
 
-    print_success "Installed for user: $USER"
+    print_success "Installed ccc v$CCC_VERSION for user: $USER"
     print_info "Run 'source ~/.bashrc' or open a new terminal to use 'ccc'"
 }
 
 install_system() {
-    print_info "Installing system-wide (requires sudo)..."
+    print_info "Installing ccc v$CCC_VERSION system-wide (requires sudo)..."
     check_dependency
 
     # Check for sudo
@@ -115,14 +129,19 @@ install_system() {
     PROFILE_SCRIPT="/etc/profile.d/continuous-claude.sh"
     RULES_FILE="/etc/continuous-claude-defaultrules.md"
 
+    # Download source
+    print_info "Downloading source from GitHub..."
+    local source_content
+    source_content=$(download_source)
+
     # Backup existing profile script if it exists
     if [ -f "$PROFILE_SCRIPT" ]; then
         sudo cp "$PROFILE_SCRIPT" "$PROFILE_SCRIPT.bak"
         print_info "Backed up $PROFILE_SCRIPT to $PROFILE_SCRIPT.bak"
     fi
 
-    # Copy function to profile.d
-    sudo cp "$SOURCE_FILE" "$PROFILE_SCRIPT"
+    # Write downloaded content to profile.d
+    echo "$source_content" | sudo tee "$PROFILE_SCRIPT" > /dev/null
     sudo chmod 644 "$PROFILE_SCRIPT"
     print_info "Installed shell function: $PROFILE_SCRIPT"
 
@@ -134,7 +153,7 @@ install_system() {
         print_info "Default rules file exists: $RULES_FILE"
     fi
 
-    print_success "Installed system-wide for all users"
+    print_success "Installed ccc v$CCC_VERSION system-wide for all users"
     print_info "Users need to log out/in or run 'source $PROFILE_SCRIPT' to use 'ccc'"
 }
 
@@ -158,6 +177,10 @@ case "${1:-}" in
         ;;
     --help|-h)
         show_usage
+        exit 0
+        ;;
+    --version|-v)
+        echo "ccc install script v$CCC_VERSION"
         exit 0
         ;;
     "")

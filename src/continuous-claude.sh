@@ -1,5 +1,6 @@
 # continuous-claude wrapper function (ccc)
 # Source: https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding
+# Version: See CCC_VERSION below (YYMMDD-HHMM format)
 #
 # This function wraps 'continuous-claude' with automatic rules file loading:
 # - Default rules: /etc/continuous-claude-defaultrules.md (system-wide)
@@ -7,13 +8,171 @@
 # - Project rules: ./continuous-claude-projectrules.md (current directory)
 # - Auto-detects GitHub owner/repo from git remote
 
+CCC_VERSION="260122-2111"
+
+# Internal function to handle ccc update
+_ccc_update() {
+  local check_only=0 update_ccc=1 update_cc=1
+  local install_type=""
+
+  # Parse update flags
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --check) check_only=1; shift ;;
+      --ccc) update_cc=0; shift ;;
+      --cc) update_ccc=0; shift ;;
+      --user) install_type="user"; shift ;;
+      --system) install_type="system"; shift ;;
+      *) printf '\033[1;31m[ERROR]\033[0m Unknown update flag: %s\n' "$1" >&2; return 1 ;;
+    esac
+  done
+
+  # Display version (required by Issue #11 - version on every invocation)
+  printf '\033[1;34m[INFO]\033[0m ccc version: %s\n' "$CCC_VERSION"
+  printf '\033[1;34m[INFO]\033[0m Checking for updates...\n'
+
+  # Detect current installation type if not specified
+  if [ -z "$install_type" ]; then
+    if [ -f "/etc/profile.d/continuous-claude.sh" ]; then
+      install_type="system"
+    elif grep -q "CCC_START" ~/.bashrc 2>/dev/null; then
+      install_type="user"
+    else
+      install_type="unknown"
+    fi
+  fi
+
+  local ccc_update_available=0 cc_update_available=0
+  local latest_ccc_version="" current_cc_version="" latest_cc_version=""
+
+  # Check for ccc updates
+  if (( update_ccc )); then
+    local curl_output
+    curl_output=$(curl -fsSL "https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/src/continuous-claude.sh" 2>&1)
+    local curl_status=$?
+
+    if (( curl_status != 0 )); then
+      printf '\033[1;31m[ERROR]\033[0m Failed to fetch ccc version from GitHub (curl exit code: %d)\n' "$curl_status" >&2
+      printf '\033[1;33m[WARNING]\033[0m ccc: %s (unable to check for updates)\n' "$CCC_VERSION"
+    else
+      latest_ccc_version=$(echo "$curl_output" | grep -m1 'CCC_VERSION=' | cut -d'"' -f2)
+      if [ -n "$latest_ccc_version" ] && [ "$latest_ccc_version" != "$CCC_VERSION" ]; then
+        # Compare versions (YYMMDD-HHMM format, string comparison works)
+        if [[ "$latest_ccc_version" > "$CCC_VERSION" ]]; then
+          ccc_update_available=1
+          printf '\033[1;33m[INFO]\033[0m ccc: %s -> %s (update available)\n' "$CCC_VERSION" "$latest_ccc_version"
+        else
+          printf '\033[1;32m[INFO]\033[0m ccc: %s (up to date)\n' "$CCC_VERSION"
+        fi
+      else
+        printf '\033[1;32m[INFO]\033[0m ccc: %s (up to date)\n' "$CCC_VERSION"
+      fi
+    fi
+  fi
+
+  # Check for continuous-claude updates
+  if (( update_cc )); then
+    if command -v npm >/dev/null 2>&1; then
+      # Get current version
+      current_cc_version=$(continuous-claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+      # Get latest version from npm
+      latest_cc_version=$(npm view @anthropic-ai/claude-code version 2>/dev/null || echo "")
+      if [ -n "$latest_cc_version" ] && [ "$latest_cc_version" != "$current_cc_version" ]; then
+        cc_update_available=1
+        printf '\033[1;33m[INFO]\033[0m continuous-claude: %s -> %s (update available)\n' "$current_cc_version" "$latest_cc_version"
+      else
+        printf '\033[1;32m[INFO]\033[0m continuous-claude: %s (up to date)\n' "$current_cc_version"
+      fi
+    else
+      printf '\033[1;33m[WARNING]\033[0m npm not found, cannot check continuous-claude updates\n'
+    fi
+  fi
+
+  # If check only, stop here
+  if (( check_only )); then
+    return 0
+  fi
+
+  # Perform updates
+  local update_performed=0
+
+  # Update ccc
+  if (( update_ccc && ccc_update_available )); then
+    printf '\033[1;34m[INFO]\033[0m Updating ccc...\n'
+    case "$install_type" in
+      user)
+        if curl -fsSL "https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh" | bash -s -- --user; then
+          printf '\033[1;32m[SUCCESS]\033[0m ccc updated: %s -> %s\n' "$CCC_VERSION" "$latest_ccc_version"
+          update_performed=1
+        else
+          printf '\033[1;31m[ERROR]\033[0m Failed to update ccc\n' >&2
+        fi
+        ;;
+      system)
+        if curl -fsSL "https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCoding/main/install.sh" | sudo bash -s -- --system; then
+          printf '\033[1;32m[SUCCESS]\033[0m ccc updated: %s -> %s\n' "$CCC_VERSION" "$latest_ccc_version"
+          update_performed=1
+        else
+          printf '\033[1;31m[ERROR]\033[0m Failed to update ccc (sudo required for system install)\n' >&2
+        fi
+        ;;
+      *)
+        printf '\033[1;31m[ERROR]\033[0m Cannot determine installation type. Use --user or --system flag.\n' >&2
+        ;;
+    esac
+  fi
+
+  # Update continuous-claude
+  if (( update_cc && cc_update_available )); then
+    printf '\033[1;34m[INFO]\033[0m Updating continuous-claude...\n'
+    if command -v npm >/dev/null 2>&1; then
+      if npm install -g @anthropic-ai/claude-code@latest 2>/dev/null; then
+        printf '\033[1;32m[SUCCESS]\033[0m continuous-claude updated: %s -> %s\n' "$current_cc_version" "$latest_cc_version"
+        update_performed=1
+      else
+        printf '\033[1;31m[ERROR]\033[0m Failed to update continuous-claude (try: sudo npm install -g @anthropic-ai/claude-code@latest)\n' >&2
+      fi
+    fi
+  fi
+
+  # Show reload hint
+  if (( update_performed && update_ccc )); then
+    case "$install_type" in
+      user)
+        printf '\033[1;34m[INFO]\033[0m Run '\''source ~/.bashrc'\'' or open a new terminal to use the updated ccc\n'
+        ;;
+      system)
+        printf '\033[1;34m[INFO]\033[0m Open a new terminal to use the updated ccc\n'
+        ;;
+    esac
+  fi
+
+  return 0
+}
+
 ccc() {
+  # Handle --version flag
+  if [[ "$1" == "--version" || "$1" == "-V" ]]; then
+    printf 'ccc version %s\n' "$CCC_VERSION"
+    return 0
+  fi
+
+  # Handle update command
+  if [[ "$1" == "update" ]]; then
+    shift
+    _ccc_update "$@"
+    return $?
+  fi
+
   # Check if continuous-claude is available
   if ! command -v continuous-claude >/dev/null 2>&1; then
     printf '\033[1;31m[ERROR]\033[0m continuous-claude not found in PATH\n' >&2
     printf 'Install it from: https://github.com/anthropics/claude-code\n' >&2
     return 1
   fi
+
+  # Display version
+  printf '\033[1;34m[INFO]\033[0m ccc version: %s\n' "$CCC_VERSION"
 
   # Use local variables to avoid polluting shell environment
   local default_rules project_rules generated_prompt user_prompt
@@ -23,6 +182,7 @@ ccc() {
   # Parse arguments for issue shortcuts and prompt merging
   generated_prompt=""
   user_prompt=""
+  local has_explicit_prompt=0  # Track if -p/--prompt was explicitly provided
 
   # Process arguments to extract -p flag value and detect shortcuts
   # We need to preserve all flags and their values, only extracting -p for merging
@@ -34,6 +194,7 @@ ccc() {
     case "$arg" in
       -p|--prompt)
         # Extract prompt value for merging, but preserve it for passthrough if no shortcut
+        has_explicit_prompt=1
         if (( i + 1 < ${#args_copy[@]} )); then
           user_prompt="${args_copy[$((i + 1))]}"
           # Store both flag and its value in remaining_args for passthrough
@@ -193,6 +354,18 @@ ccc() {
     generated_prompt="list all open issues and then work on them"
 
     # Find first positional (non-flag) argument to merge with prompt
+    find_and_remove_first_positional
+    if [ -n "$found_positional" ]; then
+      user_prompt="${user_prompt:+$user_prompt }$found_positional"
+    fi
+  # Check for direct prompt (first positional is not a shortcut, not a flag, and no explicit -p)
+  # Only treat first positional as prompt if -p/--prompt was NOT explicitly provided
+  elif [ -n "$first_positional" ] && [[ ! "$first_positional" =~ ^- ]] && (( ! has_explicit_prompt )); then
+    # First positional is a direct prompt - use it as the generated prompt
+    remove_first_positional
+    generated_prompt="$first_positional"
+
+    # Find additional positional argument to merge
     find_and_remove_first_positional
     if [ -n "$found_positional" ]; then
       user_prompt="${user_prompt:+$user_prompt }$found_positional"

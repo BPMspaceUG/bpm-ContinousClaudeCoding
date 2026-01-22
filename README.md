@@ -1,5 +1,7 @@
 # ccc - continuous-claude wrapper
 
+[![Version](https://img.shields.io/badge/version-260122--2111-blue.svg)](https://github.com/BPMspaceUG/bpm-ContinousClaudeCoding)
+
 A shell function that wraps `continuous-claude` with automatic rules file loading and GitHub issue shortcuts.
 
 ## Installation
@@ -46,6 +48,8 @@ curl -fsSL https://raw.githubusercontent.com/BPMspaceUG/bpm-ContinousClaudeCodin
 ccc [OPTIONS] [PROMPT]
 ccc [OPTIONS] ISSUE_NUMBER[,ISSUE_NUMBER...] [CONTEXT]
 ccc [OPTIONS] open [CONTEXT]
+ccc --version
+ccc update [--check] [--ccc] [--cc] [--user|--system]
 ```
 
 ### DESCRIPTION
