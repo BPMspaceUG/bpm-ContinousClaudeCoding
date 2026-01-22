@@ -65,6 +65,36 @@ ccc "your prompt here"
 ccc --model opus "your prompt"
 ```
 
+### Issue Shortcuts
+
+Work on GitHub issues directly by passing issue numbers:
+
+```bash
+# Work on a single issue
+ccc 2                    # Expands to: -p "work on issue 2"
+
+# Work on two issues (uses "and")
+ccc 2,7                  # Expands to: -p "work on issues 2 and 7"
+
+# Work on multiple issues (comma-separated with "and" before last)
+ccc 2,7,15               # Expands to: -p "work on issues 2, 7, and 15"
+
+# Add context to issue work (merged with colon)
+ccc 2 "focus on tests"   # Expands to: -p "work on issue 2: focus on tests"
+```
+
+### Open Issues Shortcut
+
+Work on all open issues in the repository:
+
+```bash
+# List and work on all open issues
+ccc open                 # Expands to: -p "list all open issues and then work on them"
+
+# With additional context (merged with colon)
+ccc open "prioritize bugs"  # Expands to: -p "list all open issues and then work on them: prioritize bugs"
+```
+
 ### Output Example
 
 ```
